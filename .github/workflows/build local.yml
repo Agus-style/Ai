@@ -32,13 +32,22 @@ jobs:
       - name: Install Expo CLI
         run: npm install -g @expo/cli
 
-      # ── Prebuild dulu agar folder android/ ada ────────────────────────────
       - name: Prebuild Android
         run: npx expo prebuild --platform android --clean
         env:
           EXPO_NO_TELEMETRY: 1
 
-      # ── Generate keystore langsung di sini, tidak perlu secret apapun ─────
+      # ── Test bundle JS dulu — kalau error, log langsung kelihatan ─────────
+      - name: Bundle JS (debug)
+        run: |
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output /tmp/index.android.bundle \
+            --assets-dest /tmp/assets
+        continue-on-error: false
+
       - name: Generate keystore
         run: |
           keytool -genkey -v \
@@ -51,18 +60,16 @@ jobs:
             -keypass password123 \
             -dname "CN=Agon, OU=Dev, O=Agon, L=Jakarta, ST=DKI, C=ID"
 
-      # ── Build release APK ─────────────────────────────────────────────────
       - name: Build Release APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --stacktrace \
+          ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=app/release.keystore \
             -Pandroid.injected.signing.store.password="password123" \
             -Pandroid.injected.signing.key.alias="agon-key" \
             -Pandroid.injected.signing.key.password="password123"
 
-      # ── Upload APK ke GitHub Artifacts ────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
@@ -70,7 +77,6 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
-      # ── Buat GitHub Release otomatis ──────────────────────────────────────
       - name: Create GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
