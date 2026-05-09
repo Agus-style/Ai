@@ -56,7 +56,7 @@ jobs:
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --info \
+          ./gradlew assembleRelease --stacktrace \
             -Pandroid.injected.signing.store.file=app/release.keystore \
             -Pandroid.injected.signing.store.password="password123" \
             -Pandroid.injected.signing.key.alias="agon-key" \
