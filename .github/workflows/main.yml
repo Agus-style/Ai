@@ -30,29 +30,37 @@ jobs:
         run: npm ci
 
       - name: Install Expo CLI
-        run: npm install -g expo-cli @expo/cli
+        run: npm install -g @expo/cli
 
-      # ── Generate keystore dari secret ──────────────────────────────────────
-      - name: Setup keystore
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-
-      # ── Export project ke Android native ───────────────────────────────────
+      # ── Prebuild dulu agar folder android/ ada ────────────────────────────
       - name: Prebuild Android
         run: npx expo prebuild --platform android --clean
         env:
           EXPO_NO_TELEMETRY: 1
 
-      # ── Build release APK ──────────────────────────────────────────────────
+      # ── Generate keystore langsung di sini, tidak perlu secret apapun ─────
+      - name: Generate keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android/app/release.keystore \
+            -alias agon-key \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass password123 \
+            -keypass password123 \
+            -dname "CN=Agon, OU=Dev, O=Agon, L=Jakarta, ST=DKI, C=ID"
+
+      # ── Build release APK ─────────────────────────────────────────────────
       - name: Build Release APK
         working-directory: android
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease \
             -Pandroid.injected.signing.store.file=app/release.keystore \
-            -Pandroid.injected.signing.store.password="${{ secrets.KEYSTORE_PASSWORD }}" \
-            -Pandroid.injected.signing.key.alias="${{ secrets.KEY_ALIAS }}" \
-            -Pandroid.injected.signing.key.password="${{ secrets.KEY_PASSWORD }}"
+            -Pandroid.injected.signing.store.password="password123" \
+            -Pandroid.injected.signing.key.alias="agon-key" \
+            -Pandroid.injected.signing.key.password="password123"
 
       # ── Upload APK ke GitHub Artifacts ────────────────────────────────────
       - name: Upload APK
@@ -62,7 +70,7 @@ jobs:
           path: android/app/build/outputs/apk/release/app-release.apk
           retention-days: 14
 
-      # ── OPSIONAL: buat GitHub Release otomatis ────────────────────────────
+      # ── Buat GitHub Release otomatis ──────────────────────────────────────
       - name: Create GitHub Release
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
