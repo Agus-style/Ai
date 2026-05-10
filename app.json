@@ -7,6 +7,7 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "owner": "agus-style",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -31,17 +32,6 @@
         "projectId": "552f0665-e30d-4f11-9ea9-97bc22a22809"
       }
     },
-    "updates": {
-      "url": "https://u.expo.dev/552f0665-e30d-4f11-9ea9-97bc22a22809"
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "owner": "arcadalabs",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ]
+    "platforms": ["ios", "android", "web"]
   }
 }
