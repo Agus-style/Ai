@@ -29,7 +29,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "552f0665-e30d-4f11-9ea9-97bc22a22809"
+        "projectId": "609f1cae-1aed-48e2-b392-99226f36c290"
       }
     },
     "platforms": ["ios", "android", "web"]
