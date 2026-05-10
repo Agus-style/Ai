@@ -1,4 +1,4 @@
-name: Build APK (Local - No EAS)
+name: Build APK (EAS)
 
 on:
   push:
@@ -7,72 +7,21 @@ on:
 
 jobs:
   build:
-    name: Build Android Release APK
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '17'
 
       - name: Install dependencies
         run: npm install
 
-      - name: Install Expo CLI
-        run: npm install -g @expo/cli
-
-      - name: Prebuild Android
-        run: npx expo prebuild --platform android --clean
-        env:
-          EXPO_NO_TELEMETRY: 1
-
-      - name: Generate keystore
-        run: |
-          keytool -genkey -v \
-            -keystore android/app/release.keystore \
-            -alias agon-key \
-            -keyalg RSA \
-            -keysize 2048 \
-            -validity 10000 \
-            -storepass password123 \
-            -keypass password123 \
-            -dname "CN=Agon, OU=Dev, O=Agon, L=Jakarta, ST=DKI, C=ID"
-
-      - name: Build Release APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease \
-            -Pandroid.injected.signing.store.file=app/release.keystore \
-            -Pandroid.injected.signing.store.password="password123" \
-            -Pandroid.injected.signing.key.alias="agon-key" \
-            -Pandroid.injected.signing.key.password="password123"
-
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
+      - uses: expo/expo-github-action@v8
         with:
-          name: agon-preview-release
-          path: android/app/build/outputs/apk/release/app-release.apk
-          retention-days: 14
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ github.run_number }}
-          name: "Agon Preview v${{ github.run_number }}"
-          files: android/app/build/outputs/apk/release/app-release.apk
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build APK
+        run: eas build --platform android --profile preview --non-interactive
