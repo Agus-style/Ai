@@ -5,7 +5,7 @@ export interface Song {
   album: string;
   artwork: string;
   previewUrl: string | null;
-  audioUrl: string;           // ← TAMBAHKAN BARIS INI
+  audioUrl: string;           
   genre: string;
   duration: number;
   releaseDate: string;
