@@ -1,10 +1,8 @@
 # File: .github/workflows/build-apk.yml
-name: ⚙️ Build APK Otomatis (Paid Theme)
+name: ⚙️ Build APK Otomatis
 
 on:
-  # 1. Biar bisa di-Klik manual lewat website GitHub
   workflow_dispatch:
-  # 2. Biar jalan otomatis pas ada commit/kode baru di branch main
   push:
     branches: [ main, master ]
 
@@ -15,15 +13,15 @@ jobs:
       - name: 🚚 Ambil Kode Project
         uses: actions/checkout@v4
 
-      - name: 🟢 Setup Node.js
+      - name: 🟢 Setup Node.js (Versi 20)
         uses: actions/setup-node@v4
         with:
-          node-version: '18.x'
+          node-version: '20.x'  # ← DIUBAH JADI 20
 
       - name: 📦 Install Dependencies
-        run: npm install # atau yarn install
+        run: npm install
 
-      - name: ☕ Setup Java (Requirement Android)
+      - name: ☕ Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
@@ -32,21 +30,23 @@ jobs:
       - name: 🤖 Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: ⚡ Setup Expo CLI & EAS
+      - name: ⚡ Setup Expo & EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }} # Ini nyambung ke Step 2
+          token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: 🔨 Build APK (Local Mode, Auto Signing)
+      - name: 🔨 Build APK
         run: |
-          # Perintah ajaib ini! --local artinya dia build di server GitHub, bukan pake kuota EAS
-          eas build --platform android --profile preview --local --output ./app-build.apk
+          npx expo install --fix
+          # Pake --non-interactive biar gak minta input
+          eas build --platform android --profile preview --local --non-interactive --output ./app-build.apk
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_DEBUG: 1
 
-      - name: 📤 Upload Hasil APK
+      - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: aplikasi-saya-android
+          name: app-android
           path: ./app-build.apk
