@@ -1,0 +1,52 @@
+# File: .github/workflows/build-apk.yml
+name: ⚙️ Build APK Otomatis (Paid Theme)
+
+on:
+  # 1. Biar bisa di-Klik manual lewat website GitHub
+  workflow_dispatch:
+  # 2. Biar jalan otomatis pas ada commit/kode baru di branch main
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🚚 Ambil Kode Project
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+
+      - name: 📦 Install Dependencies
+        run: npm install # atau yarn install
+
+      - name: ☕ Setup Java (Requirement Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🤖 Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: ⚡ Setup Expo CLI & EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }} # Ini nyambung ke Step 2
+
+      - name: 🔨 Build APK (Local Mode, Auto Signing)
+        run: |
+          # Perintah ajaib ini! --local artinya dia build di server GitHub, bukan pake kuota EAS
+          eas build --platform android --profile preview --local --output ./app-build.apk
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      - name: 📤 Upload Hasil APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: aplikasi-saya-android
+          path: ./app-build.apk
