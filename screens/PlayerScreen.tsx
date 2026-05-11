@@ -5,10 +5,17 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Song } from '../lib/types';
 import { theme } from '../lib/theme';
-import { formatDuration } from '../lib/api';
 import { Audio } from 'expo-av';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// Helper format waktu
+function formatTime(seconds: number): string {
+  if (!seconds || isNaN(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
 
 interface PlayerScreenProps {
   song: Song;
@@ -16,33 +23,33 @@ interface PlayerScreenProps {
   onTogglePlay: () => void;
   onLyricsPress: () => void;
   navigation: any;
+  // Props baru dari hook useAudioPlayer
+  positionMillis?: number;
+  durationMillis?: number;
+  onSeek?: (millis: number) => void;
+  isLoading?: boolean;
 }
 
-export default function PlayerScreen({ song, isPlaying, onTogglePlay, onLyricsPress, navigation }: PlayerScreenProps) {
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+export default function PlayerScreen({ 
+  song, 
+  isPlaying, 
+  onTogglePlay, 
+  onLyricsPress, 
+  navigation,
+  positionMillis = 0,
+  durationMillis = 0,
+  onSeek,
+  isLoading = false,
+}: PlayerScreenProps) {
+  
+  // Konversi milliseconds ke detik untuk display
+  const currentSeconds = positionMillis / 1000;
+  const totalSeconds = durationMillis / 1000;
+  const progress = durationMillis > 0 ? positionMillis / durationMillis : 0;
 
-  useEffect(() => {
-    if (isPlaying) {
-      intervalRef.current = setInterval(() => {
-        setCurrentTime(prev => {
-          const next = prev + 0.5;
-          if (next >= song.duration) {
-            setProgress(0);
-            return 0;
-          }
-          setProgress(next / song.duration);
-          return next;
-        });
-      }, 500);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isPlaying, song.duration]);
+  // Untuk progress bar manual (opsional, kalau pakai slider)
+  const [isSliding, setIsSliding] = useState(false);
+  const [sliderValue, setSliderValue] = useState(0);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -84,14 +91,14 @@ export default function PlayerScreen({ song, isPlaying, onTogglePlay, onLyricsPr
         </View>
       </View>
 
-      {/* Progress */}
+      {/* Progress Section */}
       <View style={styles.progressSection}>
         <View style={styles.progressBackground}>
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
-          <Text style={styles.timeText}>{formatDuration(currentTime)}</Text>
-          <Text style={styles.timeText}>{formatDuration(song.duration)}</Text>
+          <Text style={styles.timeText}>{formatTime(currentSeconds)}</Text>
+          <Text style={styles.timeText}>{formatTime(totalSeconds)}</Text>
         </View>
       </View>
 
@@ -103,12 +110,16 @@ export default function PlayerScreen({ song, isPlaying, onTogglePlay, onLyricsPr
         <Pressable style={styles.controlButton}>
           <Ionicons name="play-skip-back" size={28} color={theme.colors.text} />
         </Pressable>
-        <Pressable style={styles.playButton} onPress={onTogglePlay}>
-          <Ionicons
-            name={isPlaying ? 'pause' : 'play'}
-            size={36}
-            color="#fff"
-          />
+        <Pressable style={styles.playButton} onPress={onTogglePlay} disabled={isLoading}>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons
+              name={isPlaying ? 'pause' : 'play'}
+              size={36}
+              color="#fff"
+            />
+          )}
         </Pressable>
         <Pressable style={styles.controlButton}>
           <Ionicons name="play-skip-forward" size={28} color={theme.colors.text} />
