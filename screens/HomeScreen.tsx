@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, Dimensions, RefreshControl } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { 
+  View, Text, StyleSheet, FlatList, Pressable, 
+  Dimensions, RefreshControl, ActivityIndicator 
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Song, Genre } from '../lib/types';
 import { theme } from '../lib/theme';
-import { searchSongs, getTopSongs } from '../lib/api';
+import { getTrendingSongs } from '../services/musicService';
 import { genres, musicFacts } from '../lib/data';
-import SongCard from '../components/SongCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -17,22 +19,31 @@ interface HomeScreenProps {
 }
 
 export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps) {
-  const [topSongs, setTopSongs] = useState<Song[]>([]);
+  const [songs, setSongs] = useState<Song[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [fact, setFact] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadData();
+    loadSongs();
     setFact(musicFacts[Math.floor(Math.random() * musicFacts.length)]);
   }, []);
 
-  const loadData = async () => {
+  const loadSongs = async () => {
     try {
-      const songs = await getTopSongs(15);
-      setTopSongs(songs);
-    } catch (e) {
-      console.error(e);
+      setError(null);
+      const trendingSongs = await getTrendingSongs();
+      
+      if (trendingSongs && trendingSongs.length > 0) {
+        setSongs(trendingSongs);
+        console.log(`✅ Loaded ${trendingSongs.length} songs`);
+      } else {
+        setError('No songs found');
+      }
+    } catch (err) {
+      console.error('Error loading songs:', err);
+      setError('Failed to load songs');
     } finally {
       setLoading(false);
     }
@@ -40,7 +51,7 @@ export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps)
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
+    await loadSongs();
     setFact(musicFacts[Math.floor(Math.random() * musicFacts.length)]);
     setRefreshing(false);
   };
@@ -55,15 +66,60 @@ export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps)
     </Pressable>
   );
 
+  const renderSongItem = ({ item }: { item: Song }) => (
+    <Pressable 
+      style={styles.songItem} 
+      onPress={() => {
+        console.log(`🎵 Pressed: ${item.title}`);
+        onSongPress(item);
+      }}
+    >
+      <Image source={{ uri: item.artwork }} style={styles.songArtwork} />
+      <View style={styles.songInfo}>
+        <Text style={styles.songTitle} numberOfLines={1}>{item.title}</Text>
+        <Text style={styles.songArtist} numberOfLines={1}>{item.artist}</Text>
+      </View>
+      <View style={styles.playIcon}>
+        <Ionicons name="play-circle" size={32} color={theme.colors.primary} />
+      </View>
+    </Pressable>
+  );
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+          <Text style={styles.loadingText}>Memuat musik...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.centerContainer}>
+          <Ionicons name="sad-outline" size={48} color={theme.colors.textMuted} />
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable style={styles.retryButton} onPress={loadSongs}>
+            <Text style={styles.retryText}>Coba Lagi</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <FlatList
-        data={topSongs}
+        data={songs}
         keyExtractor={(item) => item.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.primary} />
+        }
         ListHeaderComponent={
           <>
-            {/* Header */}
             <View style={styles.header}>
               <View>
                 <Text style={styles.greeting}>🎵 Selamat Datang</Text>
@@ -74,13 +130,11 @@ export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps)
               </Pressable>
             </View>
 
-            {/* Music Fact */}
             <View style={styles.factCard}>
               <Text style={styles.factLabel}>💡 Tahukah Kamu?</Text>
               <Text style={styles.factText}>{fact}</Text>
             </View>
 
-            {/* Quick Actions */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Cari Musik</Text>
               <View style={styles.quickActions}>
@@ -99,7 +153,6 @@ export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps)
               </View>
             </View>
 
-            {/* Genres */}
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
                 <Text style={styles.sectionTitle}>Genre Populer</Text>
@@ -117,15 +170,13 @@ export default function HomeScreen({ navigation, onSongPress }: HomeScreenProps)
               />
             </View>
 
-            {/* Top Songs */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>🔥 Lagu Populer</Text>
+              <Text style={styles.songCount}>{songs.length} lagu tersedia</Text>
             </View>
           </>
         }
-        renderItem={({ item }) => (
-          <SongCard song={item} onPress={onSongPress} />
-        )}
+        renderItem={renderSongItem}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
       />
@@ -140,6 +191,31 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingBottom: 100,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 16,
+  },
+  loadingText: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.md,
+    marginTop: 12,
+  },
+  errorText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.md,
+  },
+  retryButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 20,
+  },
+  retryText: {
+    color: '#fff',
+    fontWeight: '600',
   },
   header: {
     flexDirection: 'row',
@@ -203,6 +279,11 @@ const styles = StyleSheet.create({
     fontSize: theme.fontSize.lg,
     fontWeight: '700',
   },
+  songCount: {
+    color: theme.colors.textMuted,
+    fontSize: theme.fontSize.xs,
+    marginTop: 4,
+  },
   seeAll: {
     color: theme.colors.primary,
     fontSize: theme.fontSize.sm,
@@ -249,5 +330,33 @@ const styles = StyleSheet.create({
   genreName: {
     fontSize: theme.fontSize.sm,
     fontWeight: '700',
+  },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  songArtwork: {
+    width: 50,
+    height: 50,
+    borderRadius: 8,
+  },
+  songInfo: {
+    flex: 1,
+  },
+  songTitle: {
+    color: theme.colors.text,
+    fontSize: theme.fontSize.md,
+    fontWeight: '600',
+  },
+  songArtist: {
+    color: theme.colors.textSecondary,
+    fontSize: theme.fontSize.sm,
+    marginTop: 2,
+  },
+  playIcon: {
+    padding: 8,
   },
 });
