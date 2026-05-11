@@ -91,6 +91,7 @@ export default function App() {
   const [showLyrics, setShowLyrics] = useState(false);
 
   const handleSongPress = useCallback((song: Song) => {
+    console.log('App: handleSongPress', song.title);
     setShowPlayer(true);
     playSong(song);
   }, [playSong]);
