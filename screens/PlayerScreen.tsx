@@ -1,19 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import { View, Text, StyleSheet, Pressable, ActivityIndicator, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Song } from '../lib/types';
 import { theme } from '../lib/theme';
-import { Audio } from 'expo-av';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Helper format waktu
-function formatTime(seconds: number): string {
-  if (!seconds || isNaN(seconds)) return '0:00';
+function formatTime(millis: number): string {
+  if (!millis || isNaN(millis)) return '0:00';
+  const seconds = Math.floor(millis / 1000);
   const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60);
+  const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
@@ -23,7 +22,6 @@ interface PlayerScreenProps {
   onTogglePlay: () => void;
   onLyricsPress: () => void;
   navigation: any;
-  // Props baru dari hook useAudioPlayer
   positionMillis?: number;
   durationMillis?: number;
   onSeek?: (millis: number) => void;
@@ -38,18 +36,12 @@ export default function PlayerScreen({
   navigation,
   positionMillis = 0,
   durationMillis = 0,
-  onSeek,
   isLoading = false,
 }: PlayerScreenProps) {
   
-  // Konversi milliseconds ke detik untuk display
-  const currentSeconds = positionMillis / 1000;
-  const totalSeconds = durationMillis / 1000;
   const progress = durationMillis > 0 ? positionMillis / durationMillis : 0;
-
-  // Untuk progress bar manual (opsional, kalau pakai slider)
-  const [isSliding, setIsSliding] = useState(false);
-  const [sliderValue, setSliderValue] = useState(0);
+  const currentTime = formatTime(positionMillis);
+  const totalTime = formatTime(durationMillis);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -77,17 +69,10 @@ export default function PlayerScreen({
 
       {/* Song Info */}
       <View style={styles.songInfo}>
-        <View style={styles.titleRow}>
-          <View style={styles.titleContainer}>
-            <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
-            <Text style={styles.songArtist} numberOfLines={1}>{song.artist}</Text>
-          </View>
-        </View>
-        <View style={styles.metaRow}>
-          <View style={styles.genreTag}>
-            <Text style={styles.genreText}>{song.genre}</Text>
-          </View>
-          <Text style={styles.albumText} numberOfLines={1}>{song.album}</Text>
+        <Text style={styles.songTitle} numberOfLines={1}>{song.title}</Text>
+        <Text style={styles.songArtist} numberOfLines={1}>{song.artist}</Text>
+        <View style={styles.genreTag}>
+          <Text style={styles.genreText}>{song.genre}</Text>
         </View>
       </View>
 
@@ -97,35 +82,27 @@ export default function PlayerScreen({
           <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
         </View>
         <View style={styles.timeRow}>
-          <Text style={styles.timeText}>{formatTime(currentSeconds)}</Text>
-          <Text style={styles.timeText}>{formatTime(totalSeconds)}</Text>
+          <Text style={styles.timeText}>{currentTime}</Text>
+          <Text style={styles.timeText}>{totalTime}</Text>
         </View>
       </View>
 
       {/* Controls */}
       <View style={styles.controls}>
         <Pressable style={styles.controlButton}>
-          <Ionicons name="shuffle" size={24} color={theme.colors.textMuted} />
-        </Pressable>
-        <Pressable style={styles.controlButton}>
           <Ionicons name="play-skip-back" size={28} color={theme.colors.text} />
         </Pressable>
+        
         <Pressable style={styles.playButton} onPress={onTogglePlay} disabled={isLoading}>
           {isLoading ? (
             <ActivityIndicator size="small" color="#fff" />
           ) : (
-            <Ionicons
-              name={isPlaying ? 'pause' : 'play'}
-              size={36}
-              color="#fff"
-            />
+            <Ionicons name={isPlaying ? 'pause' : 'play'} size={36} color="#fff" />
           )}
         </Pressable>
+        
         <Pressable style={styles.controlButton}>
           <Ionicons name="play-skip-forward" size={28} color={theme.colors.text} />
-        </Pressable>
-        <Pressable style={styles.controlButton}>
-          <Ionicons name="repeat" size={24} color={theme.colors.textMuted} />
         </Pressable>
       </View>
 
@@ -194,52 +171,37 @@ const styles = StyleSheet.create({
     zIndex: -1,
   },
   songInfo: {
+    alignItems: 'center',
     paddingHorizontal: 28,
     marginTop: 28,
-    gap: 8,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  titleContainer: {
-    flex: 1,
   },
   songTitle: {
     color: theme.colors.text,
     fontSize: theme.fontSize.xl,
     fontWeight: '700',
+    textAlign: 'center',
   },
   songArtist: {
     color: theme.colors.textSecondary,
     fontSize: theme.fontSize.md,
     marginTop: 4,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+    textAlign: 'center',
   },
   genreTag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: theme.colors.primary + '20',
     borderRadius: 8,
+    marginTop: 12,
   },
   genreText: {
     color: theme.colors.primaryLight,
     fontSize: theme.fontSize.xs,
     fontWeight: '700',
   },
-  albumText: {
-    color: theme.colors.textMuted,
-    fontSize: theme.fontSize.xs,
-    flex: 1,
-  },
   progressSection: {
     paddingHorizontal: 28,
-    marginTop: 24,
+    marginTop: 32,
   },
   progressBackground: {
     height: 4,
@@ -265,8 +227,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    gap: 20,
-    marginTop: 28,
+    gap: 24,
+    marginTop: 32,
   },
   controlButton: {
     width: 48,
@@ -291,7 +253,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 32,
-    marginTop: 28,
+    marginTop: 40,
   },
   actionButton: {
     alignItems: 'center',
